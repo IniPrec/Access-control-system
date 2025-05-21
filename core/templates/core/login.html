@@ -1,0 +1,47 @@
+{% extends "core/base.html" %}
+{% block title %}Biometric Login{% endblock %}
+{% block content %}
+
+<h2 class="mb-3">RFID + Face Login</h2>
+
+<form method="POST" enctype="multipart/form-data">
+    {% csrf_token %}
+    
+    <div class="mb-3">
+        <label for="rfid_tag" class="form-label">RFID Tag:</label>
+        <input type="text" name="rfid_tag" id="rfid_tag" class="form-control" required>
+    </div>
+
+    <div class="mb-3">
+        <video id="video" width="320" height="240" autoplay class="border"></video>
+        <canvas id="canvas" width="320" height="240" style="display: none;"></canvas>
+        <input type="hidden" name="captured_image" id="captured_image">
+        <br>
+        <button type="button" class="btn btn-outline-info mt-2" onclick="capture()">📸 Capture</button>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Submit</button>
+</form>
+
+<script>
+    const video = document.getElementById('video');
+    const canvas = document.getElementById('canvas');
+    const capturedImageInput = document.getElementById('captured_image');
+
+    // Access webcam
+    navigator.mediaDevices.getUserMedia({ video: true }).then((stream) => {
+        video.srcObject = stream;
+    });
+
+    function capture() {
+        const context = canvas.getContext('2d');
+        canvas.style.display = 'block';
+        context.drawImage(video, 0, 0, 320, 240);
+        const imageData = canvas.toDataURL('image/jpeg');
+        capturedImageInput.value = imageData;
+    }
+</script>
+
+{% endblock %}
+
+

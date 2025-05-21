@@ -1,0 +1,208 @@
+{% extends "core/base.html" %} {% block title %}Register User{% endblock %} 
+{%block content %}
+
+<style>
+    #success-toast {
+        opacity: 0;
+        transition: opacity 0.5s ease-in-out;
+    }
+    #success-toast.show {
+        opacity: 1;
+    }
+</style>
+
+<h2 class="mb-4">Register New User</h2>
+
+<form method="POST" enctype="multipart/form-data" class="row g-3">
+  {% csrf_token %} {{ form.as_p }}
+  <div class="mb-3">
+    <label class="form-label">Choose Photo Method:</label><br />
+    <div class="form-check form-check-inline">
+      <input
+        class="form-check-input"
+        type="radio"
+        name="photo_option"
+        id="upload_option"
+        value="upload"
+        checked
+        onclick="togglePhotoOption()"
+      />
+      <label class="form-check-label" for="upload_option"
+        >Upload from Device</label
+      >
+    </div>
+    <div class="form-check form-check0inline">
+      <input
+        class="form-check-input"
+        type="radio"
+        name="photo_option"
+        id="webcam_option"
+        value="webcam"
+        onclick="togglePhotoOption()"
+      />
+      <label class="form=check-label" for="webcam_option"
+        >Use Webcam (Use a white background)</label
+      >
+    </div>
+  </div>
+
+  <!-- Upload -->
+  <div class="mb-3" id="upload_section">
+    <label for="photo" class="form-label">Upload Photo</label>
+    {{ form.photo }}
+  </div>
+
+  <!-- Webcam -->
+  <div class="mb-3 d-none" id="webcam_section">
+    <label class="form-label">Capture with Webcam</label><br />
+
+    <video
+      id="video"
+      width="320"
+      height="240"
+      autoplay
+      class="border rounded mb-2"
+    ></video>
+    <canvas id="canvas" width="320" height="240" style="display: none"></canvas>
+    <input type="hidden" name="captured_image" id="captured_image" />
+
+    <div class="mt-2">
+      <button
+        type="button"
+        class="btn btn-outline-primary me-2"
+        onclick="capture()"
+      >
+        Capture
+      </button>
+      <button
+        type="button"
+        class="btn btn-outline-secondary"
+        onclick="retryCapture()"
+      >
+        Retry
+      </button>
+    </div>
+
+    <!-- Preview -->
+    <div class="mt-3" id="preview_section" style="display: none">
+      <h6>Captured Preview:</h6>
+      <img
+        id="preview"
+        src=""
+        alt="Preview will appear here"
+        width="320"
+        class="border rounded"
+      />
+      <div
+        class="alert alert-success mt-2 py-2 px-3"
+        id="success-toast"
+        style="display: none"
+      >
+        Image Captured Successfully!
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <button type="submit" class="btn btn-success">Register</button>
+  </div>
+
+  <script>
+    const video = document.getElementById("video");
+    const canvas = document.getElementById("canvas");
+    const capturedImageInput = document.getElementById("captured_image");
+    const preview = document.getElementById("preview");
+    const previewSection = document.getElementById("preview_section");
+    const toast = document.getElementById("success-toast");
+    const webcamSection = document.getElementById("webcam_section");
+    const uploadSection = document.getElementById("upload_section");
+    let stream = null;
+
+    function togglePhotoOption() {
+      const useWebcam = document.getElementById("webcam_option").checked;
+
+      if (useWebcam) {
+        webcamSection.classList.remove("d-none");
+        uploadSection.classList.add("d-none");
+
+        // Start webcam
+        if (!stream) {
+          navigator.mediaDevices
+            .getUserMedia({ video: true })
+            .then((stream) => {
+              video.srcObject = stream;
+            })
+            .catch((err) => {
+              alert("Webcam not accessible.");
+            });
+        }
+      } else {
+        webcamSection.classList.add("d-none");
+        uploadSection.classList.remove("d-none");
+        if (stream) {
+          let tracks = stream.getTracks();
+          tracks.forEach((track) => track.stop());
+          stream = null;
+        }
+      }
+    }
+
+    function capture() {
+      // Show countdown
+      const countdown = document.createElement("div");
+      countdown.id = "countdown";
+      countdown.className =
+        "position-absolute top-50 start-50 translate-middle fs-1 fw-bold text-white";
+      countdown.style.zIndex = "999";
+      document.body.appendChild(countdown);
+
+      let timeLeft = 3;
+      countdown.innerText = timeLeft;
+
+      const interval = setInterval(() => {
+        timeLeft--;
+        countdown.innerText = timeLeft;
+        if (timeLeft === 0) {
+          clearInterval(interval);
+          countdown.remove();
+
+          const context = canvas.getContext("2d");
+          context.drawImage(video, 0, 0, 320, 240);
+          const imageData = canvas.toDataURL("image/jpeg");
+          capturedImageInput.value = imageData;
+          preview.src = imageData;
+          previewSection.style.display = "block";
+
+          // Show animated toast
+          toast.style.display = "block";
+          toast.classList.add("fade", "show");
+          setTimeout(() => {
+            toast.classList.remove("show");
+            toast.style.display = "none";
+          }, 2000);
+        }
+      }, 1000);
+    }
+
+    function retryCapture() {
+      capturedImageInput.value = "";
+      preview.src = "";
+      previewSection.style.display = "none";
+    }
+
+    // Prevent form submission if no image is chosen
+    document.querySelector("form").addEventListener("submit", function (e) {
+      const photoFile = document.querySelector('input[type="file"]').value;
+      const capturedImage = capturedImageInput.value;
+
+      if (!photoFile && !capturedImage) {
+        e.preventDefault();
+        alert("Please upload or capture a photo before submitting.");
+      }
+    });
+  </script>
+</form>
+
+<a href="{% url 'user-list' %}" class="btn btn-secondary mt-4">Back to Users</a>
+
+{% endblock %}

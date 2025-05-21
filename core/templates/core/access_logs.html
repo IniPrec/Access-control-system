@@ -1,0 +1,63 @@
+{% extends "core/base.html" %}
+{% block title %}Access Logs{% endblock %}
+{% block content %}
+
+<h2 class="mb-4">Access Logs</h2>
+
+<form method="get" class="row g-3 mb-3">
+    <div class="col-md-4">
+        <input type="text" class="form-control" name="rfid" placeholder="Search RFID" value="{{ request.GET.rfid }}">
+    </div>
+    <div class="col-md-3">
+        <select class="form-select" name="status">
+            <option value="">All</option>
+            <option value="success" {% if request.GET.status == 'success' %}selected{% endif %}>Success</option>
+            <option value="failure" {% if request.GET.status == 'failure' %}selected{% endif %}>Failure</option>
+        </select>
+    </div>
+    <div class="col-md-2">
+        <button class="btn btn-primary w-100" type="submit">Filter</button>
+    </div>
+</form>
+
+<table class="table table-bordered table-striped">
+    <thead class="table-dark">
+        <tr>
+            <th>RFID</th>
+            <th>User</th>
+            <th>Success</th>
+            <th>Timestamp</th>
+            <th>Reason</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for log in logs %}
+        <tr>
+            <td>{{ log.rfid_tag }}</td>
+            <td>{% if log.user %}
+                {{ log.user.full_name }}
+            {% else %}
+                Unknown
+            {% endif %}
+            </td>
+            <td>
+                {% if log.success %}
+                    <span class="badge bg-success">Granted</span>
+                {% else %}
+                    <span class="badge bg-danger">Denied</span>
+                {% endif %}
+            </td>
+            <td>{{ log.timestamp }}</td>
+            <td>{{ log.reason|default:"—" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="5" class="text-center">No logs found.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="{% url 'user-list' %}" class="btn btn-secondary mt-3">Back to Users</a>
+
+{% endblock %}

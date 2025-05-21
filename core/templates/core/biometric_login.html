@@ -1,0 +1,26 @@
+{% extends "core/base.html" %}
+{% block title %}Biometric Login{% endblock %}
+{% block content %}
+
+<h2 class="mb-4">Login with RFID</h2>
+
+<form method="POST" class="row g-3">
+    {% csrf_token %}
+    <div class="col-md-6">
+        <label for="rfid_tag" class="form-label">RFID Tag:</label>
+        <input type="text" name="rfid_tag" id="rfid_tag" class="form-control" required>
+    </div>
+    <div class="col-md-12">
+        <button type="submit" class="btn btn-primary">Proceed</button>
+    </div>
+</form>
+
+{% if messages %}
+    <div class="mt-4">
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+{% endif %}
+
+{% endblock %}

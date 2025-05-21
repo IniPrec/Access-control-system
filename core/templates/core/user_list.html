@@ -1,0 +1,45 @@
+{% extends "core/base.html" %}
+{% block title %}Users{% endblock %}
+{% block content %}
+
+<h2 class="mb-4">Registered Users</h2>
+
+<table class="table table-bordered table-hover">
+    <thead class="table-dark">
+        <tr>
+            <th>Photo</th>
+            <th>Full Name</th>
+            <th>RFID Tag</th>
+            <th>Role</th>
+            <th>Created At</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr>
+            <td>
+                {% if user.photo %}
+                    <img src="{{ user.photo.url }}" width="60" class="rounded">
+                {% else %}
+                    <span class="text-muted">No Photo</span>
+                {% endif %}
+            </td>
+            <td>{{ user.full_name }}</td>
+            <td>{{ user.rfid_tag }}</td>
+            <td>{{ user.role }}</td>
+            <td>{{ user.created_at }}</td>
+            <td>
+                <form method="POST" action="{% url 'delete-user' user.id %}" onsubmit="return confirm('Delete this user?');">
+                    {% csrf_token %}
+                    <button class="btn btn-sm btn-danger">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<a href="{% url 'user-register' %}" class="btn btn-primary mt-3">Register New User</a>
+<a href="{% url 'access-log-list' %}" class="btn btn-secondary mt-3 ms-2">View Access Logs</a>
+
+{% endblock %}
