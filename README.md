@@ -1,6 +1,12 @@
+<<<<<<< HEAD
 # Access Control System
 
 A Django-based web application designed to manage and monitor access control within a facility. This system allows administrators to control entry and exit points, manage user permissions, and maintain logs of access events.
+=======
+# Access-control-system
+
+A Django-based web application designed to manage and monitor access control within a university. This system allows administrators to control entry and exit points, manage user permissions, and maintain logs of access events.
+>>>>>>> 91a4d54d9e0dc4a46d318dceeb97270c5d222c4d
 
 ## Features
 
@@ -10,7 +16,10 @@ A Django-based web application designed to manage and monitor access control wit
 * **Media Integration**: Capture and associate images with access events for enhanced security.
 
 ## Project Structure
+<<<<<<< HEAD
 
+=======
+>>>>>>> 91a4d54d9e0dc4a46d318dceeb97270c5d222c4d
 ```
 access-control-system/
 ├── access_control_system/    # Main Django project directory
@@ -24,13 +33,18 @@ access-control-system/
 ```
 
 ## Installation
+<<<<<<< HEAD
 
 1. **Clone the repository**:
 
+=======
+1. Clone the repository:
+>>>>>>> 91a4d54d9e0dc4a46d318dceeb97270c5d222c4d
    ```bash
    git clone https://github.com/IniPrec/Access-control-system.git
    cd Access-control-system
    ```
+<<<<<<< HEAD
 
 2. **Create a virtual environment**:
 
@@ -60,6 +74,27 @@ access-control-system/
 6. **Access the application**:
 
    Open your browser and navigate to `http://127.0.0.1:8000/`
+=======
+2. Create a virtual environment:
+   ```bash
+   python -m venv venv
+   .env\Script\Activate.ps1
+   ```
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+4. Apply migrations:
+   ```bash
+   python manage.py migrate
+   ```
+5. Run the development server:
+   ```bash
+   python manage.py runserver
+   ```
+6. Access the application:
+   Open your browser and navigate to http://127.0.0.1:8000/
+>>>>>>> 91a4d54d9e0dc4a46d318dceeb97270c5d222c4d
 
 ## Usage
 
@@ -67,6 +102,7 @@ access-control-system/
 * **Access Logs**: View and filter access logs to monitor entry and exit events.
 * **Media Files**: Captured images are stored in the `media/` directory and can be reviewed as needed.
 
+<<<<<<< HEAD
 ## Contributing
 
 Contributions are welcome! Please fork the repository and submit a pull request for any enhancements or bug fixes.
@@ -78,3 +114,6 @@ This project is licensed under the MIT License. See the [LICENSE](LICENSE) file 
 ## Acknowledgments
 
 This project was inspired by the need for a customizable and efficient access control system suitable for various facilities.
+=======
+## Acknowledgment
+>>>>>>> 91a4d54d9e0dc4a46d318dceeb97270c5d222c4d
