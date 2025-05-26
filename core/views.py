@@ -93,6 +93,11 @@ def face_verification(request):
 
     # Start Camera
     cap = cv2.VideoCapture(0)
+
+    # Let camera warm up for a few frames
+    for i in range(5):
+        ret, frame = cap.read()
+    
     ret, frame = cap.read()
     cap.release()
 
@@ -123,13 +128,18 @@ def face_verification(request):
         for face_encoding in face_encodings:
             match = face_recognition.compare_faces([known_encodings[0]], face_encoding)[0]
             if match:
-                log_access(user, user.rfid_tag, True, "Face match")
+                match_found = True
+                break # Stop at first match
+
+            if match_found:
+                log_access(user, user.rfid_tag, True, reason="Face match")
                 request.session['verification_result'] = 'success'
             else:
-                log_access(user, user.rfid_tag, False, "Face mismatch")
-                request.session['verification_result'] = 'fail'  # or dashboard
+                log_access(user, user.rfid_tag, False, reason="Face mismatch")
+                request.session['verification_result'] = 'fail'
 
             return redirect('verify-result')
+
 
         messages.error(request, "❌ Face does not match.")
     else:
