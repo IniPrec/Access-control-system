@@ -33,6 +33,8 @@ urlpatterns = [
 
     # Login views
     path('login/', core_views.login_view, name='login'),
+
+    path('deleted-users/', core_views.deleted_users_list, name='deleted-users'),
 ]
 
 if settings.DEBUG:

@@ -2,11 +2,18 @@ from django.db import models
 from django.utils import timezone
 
 class User(models.Model):
+    ROLE_CHOICES = [
+        ('student', 'Student'),
+        ('staff', 'Staff'),
+        ('admin', 'Admin'),
+    ]
+
     full_name = models.CharField(max_length=100)
     rfid_tag = models.CharField(max_length=50, unique=True)
     photo = models.ImageField(upload_to='photo/', blank=True, null=True)
-    role = models.CharField(max_length=50, default='User')
+    role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='student')
     created_at = models.DateTimeField(auto_now_add =True)
+    is_active= models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.full_name} ({self.rfid_tag})"

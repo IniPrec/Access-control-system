@@ -12,9 +12,25 @@ import os
 import base64
 from django.core.files.base import ContentFile
 from access_control_system import settings
+from functools import wraps
+
+# def admin_required(view_func):
+    # @wraps(view_func)
+    # def _wrapped_view(request, *args, **kwargs):
+        # user_id = request.session.get('login_user_id')
+        # if not user_id:
+            # return redirect('biometric_login')
+        
+        # user = User.objects.get(id=user_id)
+        # if user.role != 'admin':
+            # messages.error(request, "You are not authorized to view this page")
+            # return redirect('user_dashboard') 
+        
+        # return view_func(request, *args, **kwargs)
+    # return _wrapped_view
 
 def user_list(request):
-    users = User.objects.all()
+    users = User.objects.filter(is_active=True)
     return render(request, 'core/user_list.html', {'users': users})
 
 def access_log_list(request):
@@ -31,6 +47,11 @@ def access_log_list(request):
         logs = logs.filter(access_granted=True)
     elif status == 'False':
         logs = logs.filter(access_granted=False)
+
+    # Filter by role
+    role = request.GET.get('role')
+    if role:
+        logs = logs.filter(user__role=role)
 
     return render(request, 'core/access_logs.html', {'logs': logs})
 
@@ -117,8 +138,9 @@ def face_verification(request):
 
         request.session['captured_preview'] = f"/media/captured/{user.rfid_tag}_verify.jpg"
 
-        face_locations = face_recognition.face_locations(frame)
-        face_encodings = face_recognition.face_encodings(frame, face_locations)
+        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+        face_locations = face_recognition.face_locations(small_frame)
+        face_encodings = face_recognition.face_encodings(small_frame, face_locations)
 
         if not face_encodings:
             log_access(user, user.rfid_tag, False, reason="No face in captured image")
@@ -139,9 +161,12 @@ def face_verification(request):
             request.session['verification_result'] = 'success'
         else:
             log_access(user, user.rfid_tag, False, reason="Face mismatch")
-            request.session['verifaction_result'] = 'fail'
+            request.session['verification_result'] = 'fail'
 
-        return redirect('verify-result')
+        if user.role == 'admin':
+            return redirect('user-list') # Admin dashboard
+        else:
+            return redirect('user_dashboard') # Generic dashboard for staff/student
 
         messages.error(request, "❌ Face does not match.")
     else:
@@ -245,9 +270,25 @@ def log_access(user, rfid, access_granted, reason=None):
 
 def delete_user(request, user_id):
     user = get_object_or_404(User, id=user_id)
-    user.delete()
-    messages.success(request, f"{user.full_name} deleted.")
+    user.is_active = False
+    user.save()
+
+    # Log deletion before deleting
+    AccessLog.objects.create(
+        user=user,
+        rfid_tag=user.rfid_tag,
+        access_granted=False,
+        reason=f"User deleted by admin",
+        timestamp=timezone.now()
+    )
+
+    log_access(user, user.rfid_tag, False, reason="User marked as inactive by admin")
+    messages.success(request, f"{user.full_name} marked as inactive.")
     return redirect('user-list')
+
+def deleted_users_list(request):
+    users = User.objects.filter(is_active=False)
+    return render(request, 'core/deleted_user.html', {'users': users})
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()

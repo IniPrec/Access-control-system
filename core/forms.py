@@ -7,7 +7,7 @@ class UserRegistrationForm(forms.ModelForm):
         fields = ['full_name', 'rfid_tag', 'role', 'photo']
         widgets = {
             'full_name': forms.TextInput(attrs={'class': 'form-control'}),
-            'role': forms.TextInput(attrs={'class': 'form-control'}),
+            'role': forms.Select(attrs={'class': 'form-select'}),
             'photo': forms.ClearableFileInput(attrs={'class': 'form-control'}),
             'rfid_tag': forms.TextInput(attrs={'readonly': 'readonly', 'class': 'form-control'}),
         }

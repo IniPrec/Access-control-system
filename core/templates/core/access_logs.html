@@ -15,6 +15,14 @@
             <option value="False" {% if request.GET.status == 'False' %}selected{% endif %}>Denied</option>
         </select>
     </div>
+    <div class="col-md-4">
+        <select class="form-select" name="role">
+            <option value="">All Roles</option>
+            <option value="student">Student</option>
+            <option value="staff">Staff</option>
+            <option value="admin">Admin</option>
+        </select>
+    </div>
     <div class="col-md-2">
         <button class="btn btn-primary w-100" type="submit">Filter</button>
     </div>
@@ -35,7 +43,7 @@
         <tr>
             <td>{{ log.rfid_tag }}</td>
             <td>{% if log.user %}
-                {{ log.user.full_name }}
+                {{ log.user.full_name }} <small class="text-muted">({{ log.user.role|title }})</small>
             {% else %}
                 Unknown
             {% endif %}
