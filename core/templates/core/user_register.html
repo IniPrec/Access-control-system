@@ -14,7 +14,19 @@
 <h2 class="mb-4">Register New User</h2>
 
 <form method="POST" enctype="multipart/form-data" class="row g-3">
-  {% csrf_token %} {{ form.as_p }}
+  {% csrf_token %}
+  <div class="mb-3">
+    <label for="full_name" class="form-label">Full Name:</label>
+    {{ form.full_name }}
+  </div>
+  <div class="mb-3">
+    <label for="rfid_tag" class="form-label">RFID Tag:</label>
+    {{ form.rfid_tag }}
+  </div>
+  <div class="mb-3">
+    <label for="role" class="form-label">Role:</label>
+    {{ form.role }}
+  </div>
   <div class="mb-3">
     <label class="form-label">Choose Photo Method:</label><br />
     <div class="form-check form-check-inline">

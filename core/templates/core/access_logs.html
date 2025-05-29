@@ -11,8 +11,8 @@
     <div class="col-md-3">
         <select class="form-select" name="status">
             <option value="">All</option>
-            <option value="success" {% if request.GET.status == 'success' %}selected{% endif %}>Success</option>
-            <option value="failure" {% if request.GET.status == 'failure' %}selected{% endif %}>Failure</option>
+            <option value="True" {% if request.GET.status == 'True' %}selected{% endif %}>Granted</option>
+            <option value="False" {% if request.GET.status == 'False' %}selected{% endif %}>Denied</option>
         </select>
     </div>
     <div class="col-md-2">

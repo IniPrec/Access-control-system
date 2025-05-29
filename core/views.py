@@ -27,9 +27,9 @@ def access_log_list(request):
 
     # Filter by success/failure
     status = request.GET.get('status')
-    if status == 'access_granted':
+    if status == 'True':
         logs = logs.filter(access_granted=True)
-    elif status == 'failure':
+    elif status == 'False':
         logs = logs.filter(access_granted=False)
 
     return render(request, 'core/access_logs.html', {'logs': logs})
@@ -95,13 +95,13 @@ def face_verification(request):
     cap = cv2.VideoCapture(0)
 
     # Let camera warm up for a few frames
-    for i in range(5):
-        ret, frame = cap.read()
+    for _ in range(5):
+        cap.read()
     
     ret, frame = cap.read()
     cap.release()
 
-    if not ret:
+    if not ret or frame is None:
         log_access(user, user.rfid_tag, False, reason="Camera failure")
         messages.error(request, "Failed to capture image from camera.")
         return redirect("biometric_login")
@@ -125,21 +125,23 @@ def face_verification(request):
             messages.error(request, "No face detected in the captured image.")
             return redirect('biometric_login')
 
+        match_found = False
+
         for face_encoding in face_encodings:
             match = face_recognition.compare_faces([known_encodings[0]], face_encoding)[0]
             if match:
                 match_found = True
-                break # Stop at first match
+                break # Exit early on first match
 
-            if match_found:
-                log_access(user, user.rfid_tag, True, reason="Face match")
-                request.session['verification_result'] = 'success'
-            else:
-                log_access(user, user.rfid_tag, False, reason="Face mismatch")
-                request.session['verification_result'] = 'fail'
+        # Log and respond outside the loop
+        if match_found:
+            log_access(user, user.rfid_tag, True, reason="Face match")
+            request.session['verification_result'] = 'success'
+        else:
+            log_access(user, user.rfid_tag, False, reason="Face mismatch")
+            request.session['verifaction_result'] = 'fail'
 
-            return redirect('verify-result')
-
+        return redirect('verify-result')
 
         messages.error(request, "❌ Face does not match.")
     else:
