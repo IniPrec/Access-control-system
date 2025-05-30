@@ -138,9 +138,15 @@ def face_verification(request):
 
         request.session['captured_preview'] = f"/media/captured/{user.rfid_tag}_verify.jpg"
 
+        # Resize frame to speed up processing
         small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
-        face_locations = face_recognition.face_locations(small_frame)
-        face_encodings = face_recognition.face_encodings(small_frame, face_locations)
+
+        # Convert BGR (OpenCV default) to RGB
+        rgb_small_frame = small_frame[:, :, ::-1] # Reverse channels
+
+        # Detect and encode
+        face_locations = face_recognition.face_locations(rgb_small_frame)
+        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
 
         if not face_encodings:
             log_access(user, user.rfid_tag, False, reason="No face in captured image")
@@ -288,7 +294,17 @@ def delete_user(request, user_id):
 
 def deleted_users_list(request):
     users = User.objects.filter(is_active=False)
-    return render(request, 'core/deleted_user.html', {'users': users})
+    return render(request, 'core/deleted_users.html', {'users': users})
+
+def restore_user(request, user_id):
+    user = get_object_or_404(User, id=user_id)
+    user.is_active = True
+    user.save()
+
+    log_access(user, user.rfid_tag, False, reason="User restored by admin")
+
+    messages.success(request, f"{user.full_name} restored successfully.")
+    return redirect('deleted-users')
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()

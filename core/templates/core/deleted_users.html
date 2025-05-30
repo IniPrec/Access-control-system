@@ -1,16 +1,33 @@
-{% extends "core/base.html" %}
-{% block content %}
+{% extends "core/base.html" %} {% block content %}
 <h2>Inactive Users</h2>
 <table class="table table-bordered">
-  <thead><tr><th>Name</th><th>RFID</th><th>Role</th><th>Marked Inactive On</th></tr></thead>
+  <thead>
+    <tr>
+      <th>Name</th>
+      <th>RFID</th>
+      <th>Role</th>
+      <th>Marked Inactive On</th>
+      <th>Action</th>
+    </tr>
+  </thead>
   <tbody>
     {% for user in users %}
-      <tr>
-        <td>{{ user.full_name }}</td>
-        <td>{{ user.rfid_tag }}</td>
-        <td>{{ user.role|title }}</td>
-        <td>{{ user.created_at }}</td>
-      </tr>
+    <tr>
+      <td>{{ user.full_name }}</td>
+      <td>{{ user.rfid_tag }}</td>
+      <td>{{ user.role|title }}</td>
+      <td>{{ user.created_at }}</td>
+      <td>
+        <form
+          method="POST"
+          action="{% url 'restore-user' user.id %}"
+          style="display: inline"
+        >
+          {% csrf_token %}
+          <button type="submit" class="btn btn-success btn-sm">Restore</button>
+        </form>
+      </td>
+    </tr>
     {% endfor %}
   </tbody>
 </table>

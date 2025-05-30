@@ -1,6 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
-from .views import UserViewSet, AccessLogViewSet, user_register, user_list, biometric_login, face_verification, verify_result, delete_user, deleted_users_list
+from .views import UserViewSet, AccessLogViewSet, user_register, user_list, biometric_login, face_verification, verify_result, delete_user, deleted_users_list, restore_user
 
 router = DefaultRouter()
 router.register(r'users', UserViewSet)
@@ -16,4 +16,5 @@ urlpatterns = [
     path('verify-result/', verify_result, name='verify-result'),
     path('delete-user/<int:user_id>/', delete_user, name='delete-user'),
     path('deleted-users/', deleted_users_list, name='deleted-users'),
+    path('restored-user/<int:user_id>/', restore_user, name='restore-user'),
 ]
