@@ -13,7 +13,7 @@ class User(models.Model):
     photo = models.ImageField(upload_to='photo/', blank=True, null=True)
     role = models.CharField(max_length=50, choices=ROLE_CHOICES, default='student')
     created_at = models.DateTimeField(auto_now_add =True)
-    is_active= models.BooleanField(default=True)
+    is_active = models.BooleanField(default=True)
 
     def __str__(self):
         return f"{self.full_name} ({self.rfid_tag})"

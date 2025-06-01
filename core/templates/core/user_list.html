@@ -28,12 +28,12 @@
             <td>{{ user.rfid_tag }}</td>
             <td>{{ user.role }}</td>
             <td>{{ user.created_at }}</td>
-            <td>
-                <form method="POST" action="{% url 'delete-user' user.id %}" onsubmit="return confirm('Delete this user?');">
-                    {% csrf_token %}
-                    <button class="btn btn-sm btn-danger">Delete</button>
-                </form>
-            </td>
+            {% comment %} <td> {% endcomment %}
+                {% comment %} <form method="POST" action="{% url 'delete-user' user.id %}" onsubmit="return confirm('Delete this user?');"> {% endcomment %}
+                    {% comment %} {% csrf_token %} {% endcomment %}
+                    {% comment %} <button class="btn btn-sm btn-danger">Delete</button> {% endcomment %}
+                {% comment %} </form> {% endcomment %}
+            {% comment %} </td> {% endcomment %}
         </tr>
         {% endfor %}
     </tbody>
@@ -41,6 +41,6 @@
 
 <a href="{% url 'user-register' %}" class="btn btn-primary mt-3">Register New User</a>
 <a href="{% url 'access-log-list' %}" class="btn btn-secondary mt-3 ms-2">View Access Logs</a>
-<a href="{% url 'deleted-users' %}" class="btn btn-secondary mt-3 ms-2">View Deleted Users</a>
+{% comment %} <a href="{% url 'deleted-users' %}" class="btn btn-secondary mt-3 ms-2">View Deleted Users</a> {% endcomment %}
 
 {% endblock %}

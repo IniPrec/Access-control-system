@@ -1,0 +1,52 @@
+{% extends "core/base.html" %}
+
+{% block content %}
+<div class="container mt-5">
+  <h2 class="mb-3">Welcome, {{ user.full_name }} 👋</h2>
+  <p><strong>Role:</strong> {{ user.role|title }} | <strong>RFID:</strong> {{ user.rfid_tag }}</p>
+
+  {% comment %} {% if result %}
+    <div class="alert alert-{{ 'success' if result == 'success' else 'danger' }}">
+      {% if result == 'success' %}
+        ✅ Access granted — face verification successful.
+      {% else %}
+        ❌ Access denied — face did not match.
+      {% endif %}
+    </div>
+  {% endif %} {% endcomment %}
+
+  <h4 class="mt-4">Your Recent Access Logs</h4>
+  <table class="table table-bordered mt-3">
+    <thead class="table-light">
+      <tr>
+        <th>Date & Time</th>
+        <th>Method</th>
+        <th>Status</th>
+        <th>Reason</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for log in logs %}
+        <tr>
+          <td>{{ log.timestamp }}</td>
+          <td>{{ log.method }}</td>
+          <td>
+            {% if log.access_granted %}
+              <span class="badge bg-success">Granted</span>
+            {% else %}
+              <span class="badge bg-danger">Denied</span>
+            {% endif %}
+          </td>
+          <td>{{ log.reason }}</td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="4" class="text-center text-muted">No access logs found.</td>
+        </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <a href="{% url 'biometric_login' %}" class="btn btn-outline-primary mt-3">🔁 Log In Again</a>
+</div>
+{% endblock %}

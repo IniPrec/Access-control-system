@@ -12,25 +12,9 @@ import os
 import base64
 from django.core.files.base import ContentFile
 from access_control_system import settings
-from functools import wraps
-
-# def admin_required(view_func):
-    # @wraps(view_func)
-    # def _wrapped_view(request, *args, **kwargs):
-        # user_id = request.session.get('login_user_id')
-        # if not user_id:
-            # return redirect('biometric_login')
-        
-        # user = User.objects.get(id=user_id)
-        # if user.role != 'admin':
-            # messages.error(request, "You are not authorized to view this page")
-            # return redirect('user_dashboard') 
-        
-        # return view_func(request, *args, **kwargs)
-    # return _wrapped_view
 
 def user_list(request):
-    users = User.objects.filter(is_active=True)
+    users = User.objects.all()
     return render(request, 'core/user_list.html', {'users': users})
 
 def access_log_list(request):
@@ -43,17 +27,25 @@ def access_log_list(request):
 
     # Filter by success/failure
     status = request.GET.get('status')
-    if status == 'True':
+    if status == 'access_granted':
         logs = logs.filter(access_granted=True)
-    elif status == 'False':
+    elif status == 'failure':
         logs = logs.filter(access_granted=False)
 
-    # Filter by role
     role = request.GET.get('role')
     if role:
         logs = logs.filter(user__role=role)
 
-    return render(request, 'core/access_logs.html', {'logs': logs})
+    total_logs = logs.count()
+    successful_logs = logs.filter(access_granted=True).count()
+    failed_logs = logs.filter(access_granted=False).count()
+
+    return render(request, 'core/access_logs.html', {
+        'logs': logs,
+        'total_logs': total_logs,
+        'successful_logs': successful_logs,
+        'failed_logs': failed_logs,
+    })
 
 def user_register(request):
     if request.method == 'POST':
@@ -77,12 +69,12 @@ def user_register(request):
             user.save()
             # Redirect to Face verification after registration
             request.session['login_user_id'] = user.id # Store user in session
-            return redirect('face_verification') # Go to face check
+            return redirect('user_dashboard') # Go to face check
 
     else:
         rfid = generate_rfid()
         form = UserRegistrationForm(initial={'rfid_tag': rfid}) # Creates an empty form instance
-        
+
     return render(request, 'core/user_register.html', {'form': form})
 
 def biometric_login(request):
@@ -100,10 +92,10 @@ def face_verification(request):
     user_id = request.session.get('login_user_id')
     if not user_id:
         return redirect('biometric_login')
-    
+
     user = User.objects.get(id=user_id)
 
-    # Load the stored photo
+    # Load registered photo
     known_image = face_recognition.load_image_file(user.photo.path)
     known_encodings = face_recognition.face_encodings(known_image)
 
@@ -113,72 +105,62 @@ def face_verification(request):
         return redirect('biometric_login')
 
     # Start Camera
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+    print("Camera opened:", cap.isOpened())
 
-    # Let camera warm up for a few frames
-    for _ in range(5):
-        cap.read()
-    
-    ret, frame = cap.read()
+    frame = None
+    for _ in range(10):
+        ret, temp = cap.read()
+        if ret:
+            frame = temp
     cap.release()
 
-    if not ret or frame is None:
+    if frame is None:
         log_access(user, user.rfid_tag, False, reason="Camera failure")
         messages.error(request, "Failed to capture image from camera.")
         return redirect("biometric_login")
 
-    if ret:
+    # if ret:
         #cv2.imshow("Face Capture - Press any key to continue", frame)
         #cv2.waitKey(5000)
         #cv2.destroyAllWindows()
 
-        captured_path = os.path.join(settings.MEDIA_ROOT, 'captured', f"{user.rfid_tag}_verify.jpg")
-        os.makedirs(os.path.dirname(captured_path), exist_ok=True)
-        cv2.imwrite(captured_path, frame)
+    captured_path = os.path.join(settings.MEDIA_ROOT, 'captured', f"{user.rfid_tag}_verify.jpg")
+    os.makedirs(os.path.dirname(captured_path), exist_ok=True)
+    cv2.imwrite(captured_path, frame)
+    cv2.imwrite("media/captured_debug.jpg", frame)
 
-        request.session['captured_preview'] = f"/media/captured/{user.rfid_tag}_verify.jpg"
+    request.session['captured_preview'] = f"/media/captured/{user.rfid_tag}_verify.jpg"
 
-        # Resize frame to speed up processing
-        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+    # Encode captured face
+    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB).astype('uint8')
+    face_locations = face_recognition.face_locations(rgb_frame)
+    if not face_locations:
+        log_access(user, user.rfid_tag, False, reason="No face in captured image")
+        messages.error(request, "No face detected in the captured image.")
+        return redirect('biometric_login')
+    face_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
 
-        # Convert BGR (OpenCV default) to RGB
-        rgb_small_frame = small_frame[:, :, ::-1] # Reverse channels
 
-        # Detect and encode
-        face_locations = face_recognition.face_locations(rgb_small_frame)
-        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+    print("Detected faces in verification image:", len(face_encodings))
 
-        if not face_encodings:
+    if not face_encodings:
             log_access(user, user.rfid_tag, False, reason="No face in captured image")
             messages.error(request, "No face detected in the captured image.")
             return redirect('biometric_login')
 
-        match_found = False
+    # Match faces
+    match_found = any(face_recognition.compare_faces([known_encodings[0]], encoding)[0]
+                      for encoding in face_encodings)
 
-        for face_encoding in face_encodings:
-            match = face_recognition.compare_faces([known_encodings[0]], face_encoding)[0]
-            if match:
-                match_found = True
-                break # Exit early on first match
-
-        # Log and respond outside the loop
-        if match_found:
-            log_access(user, user.rfid_tag, True, reason="Face match")
-            request.session['verification_result'] = 'success'
-        else:
-            log_access(user, user.rfid_tag, False, reason="Face mismatch")
-            request.session['verification_result'] = 'fail'
-
-        if user.role == 'admin':
-            return redirect('user-list') # Admin dashboard
-        else:
-            return redirect('user_dashboard') # Generic dashboard for staff/student
-
-        messages.error(request, "❌ Face does not match.")
+    if match_found:
+        log_access(user, user.rfid_tag, True, reason="Face match")
+        request.session['verification_result'] = 'success'
     else:
-        messages.error(request, "❌ Failed to capture image from camera.")
+        log_access(user, user.rfid_tag, False, reason="Face mismatch")
+        request.session['verification_result'] = 'fail'
 
-    return redirect('biometric_login')
+    return redirect('verify-result')
 
 def verify_result(request):
     user_id = request.session.get('login_user_id')
@@ -189,7 +171,7 @@ def verify_result(request):
 
     return render(request, 'core/verify_result.html', {
         'user': user,
-        'captured+preview': captured_preview,
+        'captured_preview': captured_preview,
         'result': result
     })
 
@@ -198,14 +180,15 @@ def user_dashboard(request):
     user = User.objects.get(id=user_id)
     logs = AccessLog.objects.filter(user=user).order_by('-timestamp')
 
-    return render(request, 'core/dashboard.html', {
+    return render(request, 'core/user_dashboard.html', {
         'user': user,
         'logs': logs
     })
 
-
 def login_view(request):
     result = None
+    captured_path = ""
+    ret = False
 
     if request.method =='POST':
         form = LoginForm(request.POST)
@@ -215,51 +198,84 @@ def login_view(request):
                 user = User.objects.get(rfid_tag=rfid_tag)
 
                 # Capture face with webcam
-                cam = cv2.VideoCapture(0)
-                ret, frame = cam.read()
+                cam = cv2.VideoCapture(0, cv2.CAP_DSHOW)
+                frame = None
+                for _ in range(10):
+                    ret, temp = cam.read()
+                    if ret:
+                        frame = temp
+                cam.release()
 
-                if ret:
-                    cv2.imshow("Face Capture", frame) # Shows webcam preview
-                    cv2.waitkey(10000) # Wait 10 seconds
-                    cv2.destroyAllWindows()
-                    os.makedirs('media/captured', exist_ok=True)
-                    captured_path = f"media/captured/{user.rfid_tag}_login.jpg"
-                    cv2.imwrite(captured_path, frame)
-
-                    # Load and encode known user photo
-                    known_image = face_recognition.load_image_file(user.photo.path)
-                    known_encodings = face_recognition.face_encodings(known_image)
-
-                    # Load and encode captured photo
-                    test_image = face_recognition.load_image_file(captured_path)
-                    test_encodings = face_recognition.face_encodings(test_image)
-
-                    if known_encodings and test_encodings:
-                        match = face_recognition.compare_faces([known_encodings[0]], test_encodings[0])[0]
-                        if match:
-                            AccessLog.objects.create(
-                                user=user,
-                                rfid_tag=rfid_tag,
-                                access_granted=True,
-                                reason="Face match",
-                                timestamp=timezone.now()
-                            )
-                            result = f"Access granted. Welcome, {user.full_name}!"
-                        else:
-                            AccessLog.objects.create(
-                                user=user,
-                                rfid_tag=rfid_tag,
-                                access_granted=False,
-                                reason="Face mismatch",
-                                timestamp=timezone.now()
-                            )
-                            result = "Face does not match. Access denied."
-                    else:
-                        result = "Could not detect face properly."
-                else:
+                if frame is None:
                     result = "Failed to capture image."
+                    log_access(user, rfid_tag, False, reason="Camera failure")
+                    return render(request, 'core/login.html', {
+                        'form': form,
+                        'result': result
+                    })
+
+                # if ret:
+                    # cv2.imshow("Face Capture", frame) # Shows webcam preview
+                    # cv2.waitKey(10000) # Wait 10 seconds
+                    # cv2.destroyAllWindows()
+                os.makedirs('media/captured', exist_ok=True)
+                captured_path = f"media/captured/{user.rfid_tag}_login.jpg"
+                cv2.imwrite(captured_path, frame)
+                cv2.imwrite("media/captured_debug.jpg", frame)
+
+                # Load and encode known user photo
+                known_image = face_recognition.load_image_file(user.photo.path)
+                known_encodings = face_recognition.face_encodings(known_image)
+
+                # Load and encode captured photo
+                rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB).astype('uint8')
+                face_locations = face_recognition.face_locations(rgb_frame)
+                if not face_locations:
+                    log_access(user, rfid_tag, False, reason="No face in captured image")
+                    result = "No face detected in the captured image."
+                    return render(request, 'core/login.html', {
+                        'form': form,
+                        'result': result
+                    })
+                test_encodings = face_recognition.face_encodings(rgb_frame, face_locations)
+
+                print("Detected faces in login image:", len(test_encodings))
+
+                if known_encodings and test_encodings:
+                    match = face_recognition.compare_faces([known_encodings[0]], test_encodings[0], tolerance=0.4)[0]
+                    if match:
+                        log_access(user, rfid_tag, True, reason="Face match")
+                        request.session['login_user_id'] = user.id
+                        request.session['verification_result'] = 'success'
+
+                        if user.role == 'admin':
+                            return redirect('user-list')
+                        else:
+                            return redirect('user_dashboard')
+                            # AccessLog.objects.create(
+                                # user=user,
+                                # rfid_tag=rfid_tag,
+                                # access_granted=True,
+                                # reason="Face match",
+                                # timestamp=timezone.now()
+                            # )
+                            # result = f"Access granted. Welcome, {user.full_name}!"
+                    else:
+                        log_access(user, rfid_tag, False, reason="Face mismatch")
+                        result = "Face does not match. Access denied."
+                            # AccessLog.objects.create(
+                                # user=user,
+                                # rfid_tag=rfid_tag,
+                                # access_granted=False,
+                                # reason="Face mismatch",
+                                # timestamp=timezone.now()
+                            # )
+                            # result = "Face does not match. Access denied."
+                else:
+                    log_access(user, rfid_tag, False, reason="Could not detect face properly.")
+                    result = "Could not detect face properly."
             except User.DoesNotExist:
-                result = "NO user found with that RFID tag."
+                result = "No user found with that RFID tag."
     else:
         form = LoginForm()
 
@@ -274,37 +290,11 @@ def log_access(user, rfid, access_granted, reason=None):
         timestamp=timezone.now()
     )
 
-def delete_user(request, user_id):
-    user = get_object_or_404(User, id=user_id)
-    user.is_active = False
-    user.save()
-
-    # Log deletion before deleting
-    AccessLog.objects.create(
-        user=user,
-        rfid_tag=user.rfid_tag,
-        access_granted=False,
-        reason=f"User deleted by admin",
-        timestamp=timezone.now()
-    )
-
-    log_access(user, user.rfid_tag, False, reason="User marked as inactive by admin")
-    messages.success(request, f"{user.full_name} marked as inactive.")
-    return redirect('user-list')
-
-def deleted_users_list(request):
-    users = User.objects.filter(is_active=False)
-    return render(request, 'core/deleted_users.html', {'users': users})
-
-def restore_user(request, user_id):
-    user = get_object_or_404(User, id=user_id)
-    user.is_active = True
-    user.save()
-
-    log_access(user, user.rfid_tag, False, reason="User restored by admin")
-
-    messages.success(request, f"{user.full_name} restored successfully.")
-    return redirect('deleted-users')
+# def delete_user(request, user_id):
+    # user = get_object_or_404(User, id=user_id)
+    # user.delete()
+    # messages.success(request, f"{user.full_name} deleted.")
+    # return redirect('user-list')
 
 class UserViewSet(viewsets.ModelViewSet):
     queryset = User.objects.all()
@@ -312,4 +302,3 @@ class UserViewSet(viewsets.ModelViewSet):
 
 class AccessLogViewSet(viewsets.ModelViewSet):
     queryset = AccessLog.objects.all()
-    serializer_class = AccessLogSerializer
