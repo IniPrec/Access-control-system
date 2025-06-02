@@ -34,6 +34,9 @@ urlpatterns = [
     # Login views
     path('login/', core_views.login_view, name='login'),
 
+    # Logout views
+    path('logout/', core_views.logout_view, name='logout'),
+
     # path('deleted-users/', core_views.deleted_users_list, name='deleted-users'),
 ]
 

@@ -12,11 +12,44 @@ import os
 import base64
 from django.core.files.base import ContentFile
 from access_control_system import settings
+from django.db.models import Count, Q
+from functools import wraps
+from django.contrib.auth import logout as django_logout
 
+# Admin Restriction Decorator
+def admin_required(view_func):
+    @wraps(view_func)
+    def _wrapped_view(request, *args, **kwargs):
+        user_id = request.session.get('login_user_id')
+        if not user_id:
+            return redirect('biometric_login')
+
+        user = User.objects.filter(id=user_id).first()
+        if not user or user.role != 'admin':
+            messages.error(request, "You are not authorized to access this page.")
+            return redirect('user_dashboard')
+        return view_func(request, *args, **kwargs)
+    return _wrapped_view
+
+@admin_required
+def system_accuracy(request):
+    total = AccessLog.objects.count()
+    correct = AccessLog.objects.filter(access_granted=True, reason="Face match").count()
+
+    accuracy = (correct / total) * 100 if total > 0 else 0
+
+    return render(request, 'core/system_accuracy.html', {
+        'total_attempts': total,
+        'correct_matches': correct,
+        'accuracy': round(accuracy, 2)
+    })
+
+@admin_required
 def user_list(request):
     users = User.objects.all()
     return render(request, 'core/user_list.html', {'users': users})
 
+@admin_required
 def access_log_list(request):
     logs = AccessLog.objects.select_related('user').order_by('-timestamp')
 
@@ -47,6 +80,7 @@ def access_log_list(request):
         'failed_logs': failed_logs,
     })
 
+@admin_required
 def user_register(request):
     if request.method == 'POST':
         form = UserRegistrationForm(request.POST, request.FILES) # Handles form submission
@@ -178,6 +212,10 @@ def verify_result(request):
 def user_dashboard(request):
     user_id = request.session.get('login_user_id')
     user = User.objects.get(id=user_id)
+
+    storage = messages.get_messages(request)
+    list(storage) # Clear messages.
+
     logs = AccessLog.objects.filter(user=user).order_by('-timestamp')
 
     return render(request, 'core/user_dashboard.html', {
@@ -280,6 +318,12 @@ def login_view(request):
         form = LoginForm()
 
     return render(request, 'core/login.html', {'form': form, 'result': result, 'captured_path': captured_path.replace("media/", "/media/") if ret else None})
+
+def logout_view(request):
+    django_logout(request)
+    request.session.flush()
+    messages.success(request, "You have been logged out.")
+    return redirect('biometric_login')
 
 def log_access(user, rfid, access_granted, reason=None):
     AccessLog.objects.create(
